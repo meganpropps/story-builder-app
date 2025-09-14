@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { StoryNode } from '../types';
 
 type Props = {
