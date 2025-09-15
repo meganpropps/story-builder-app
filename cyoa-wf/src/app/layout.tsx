@@ -1,5 +1,5 @@
 import "./globals.css";
-import React, { ReactNode } from "react";
+import type  { ReactNode } from "react";
 
 export const metadata = { title: "CYOA Builder", description: "Next.js + Supabase starter" };
 
