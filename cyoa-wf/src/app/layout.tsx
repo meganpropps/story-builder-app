@@ -1,12 +1,23 @@
+
+import type { Metadata } from "next";
+import Layout from "../components/Layout";
 import "./globals.css";
-import type  { ReactNode } from "react";
 
-export const metadata = { title: "CYOA Builder", description: "Next.js + Supabase starter" };
+export const metadata: Metadata = {
+  title: "StoryBuilder",
+  description: "Create interactive stories with branching paths",
+};
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className="bg-slate-950 text-slate-100 min-h-screen">{children}</body>
+      <body>
+        <Layout>{children}</Layout>
+      </body>
     </html>
   );
 }
