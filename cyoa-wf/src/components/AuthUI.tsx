@@ -2,11 +2,11 @@
 
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
-import { supabase } from "../lib/supabaseClient";
+import { supabase } from "../../lib/supabaseClient";
 
 export default function AuthUI() {
   return (
-    <div className="flex items-center  bg-gray-100 dark:bg-gray-900">
+    <div className="flex items-center justify-center bg-gray-100 dark:bg-gray-900 h-screen">
       <div className="w-[400px] h-[500px] flex items-center rounded-xl shadow-lg bg-white dark:bg-gray-800 p-6">
         <Auth
           supabaseClient={supabase}
