@@ -1,0 +1,37 @@
+{
+  "name": "Scene",
+  "type": "object",
+  "properties": {
+    "story_id": {
+      "type": "string",
+      "description": "ID of the story this scene belongs to"
+    },
+    "title": {
+      "type": "string",
+      "description": "Title of the scene"
+    },
+    "description": {
+      "type": "string",
+      "description": "Text content/description of the scene"
+    },
+    "image_url": {
+      "type": "string",
+      "description": "Image URL for the scene"
+    },
+    "order_index": {
+      "type": "number",
+      "default": 0,
+      "description": "Order of the scene in the story"
+    },
+    "is_starting_scene": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this is the starting scene"
+    }
+  },
+  "required": [
+    "story_id",
+    "title",
+    "description"
+  ]
+}

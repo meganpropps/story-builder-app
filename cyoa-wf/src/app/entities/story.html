@@ -1,0 +1,31 @@
+{
+  "name": "Story",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Title of the story"
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the story"
+    },
+    "cover_image": {
+      "type": "string",
+      "description": "Cover image URL for the story"
+    },
+    "is_published": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the story is published"
+    },
+    "theme_color": {
+      "type": "string",
+      "default": "#8B5CF6",
+      "description": "Theme color for the story"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
