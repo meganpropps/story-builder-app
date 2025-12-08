@@ -7,5 +7,8 @@
     "nanoid": "^5.1.6",
     "reactflow": "^11.11.4",
     "zustand": "^5.0.9"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1"
   }
 }
