@@ -29,3 +29,22 @@ export interface BadgeProps
     VariantProps<typeof badgeVariants> {
   icon?: React.ReactNode;
 }
+
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, icon, children, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(badgeVariants({ variant }), className)}
+        {...props}
+      >
+        {icon && <span className="mr-1.5">{icon}</span>}
+        {children}
+      </div>
+    );
+  }
+);
+
+Badge.displayName = 'Badge';
+
+export { Badge, badgeVariants };

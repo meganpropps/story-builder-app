@@ -89,6 +89,9 @@ export interface Story {
   startNodeId: string | null;
   variables?: Record<string, any>;
   settings?: StorySettings;
+  publishedAt?: string;
+  plays?: number;
+  likes?: number;
 }
 
 export interface StorySettings {

@@ -16,7 +16,8 @@ import type {
   StoryNode, 
   StoryEdge, 
   StoryNodeData, 
-  Choice 
+  Choice,
+  PlayState
 } from '../interfaces/story-models';
 
 interface StoryState {
@@ -29,6 +30,10 @@ interface StoryState {
   selectedNodeId: string | null;
   isPlayMode: boolean;
   currentPlayNodeId: string | null;
+  playState: PlayState | null;
+  isSidebarOpen: boolean;
+  isChoiceModalOpen: boolean;
+  pendingConnection: { sourceNodeId: string; targetNodeId?: string } | null;
   
   // History for undo/redo
   history: { nodes: StoryNode[]; edges: StoryEdge[] }[];
@@ -42,6 +47,8 @@ interface StoryState {
   addNode: (position: { x: number; y: number }) => void;
   updateNode: (nodeId: string, data: Partial<StoryNodeData>) => void;
   deleteNode: (nodeId: string) => void;
+  duplicateNode: (nodeId: string) => void;
+  setStartNode: (nodeId: string) => void;
   selectNode: (nodeId: string | null) => void;
   
   // Edge/Choice CRUD
@@ -58,6 +65,7 @@ interface StoryState {
   togglePlayMode: () => void;
   setCurrentPlayNode: (nodeId: string | null) => void;
   makeChoice: (choiceId: string) => void;
+  resetPlay: () => void;
   
   // Persistence
   saveToLocalStorage: () => void;
@@ -70,6 +78,11 @@ interface StoryState {
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  
+  // UI Actions
+  openChoiceModal: (sourceNodeId: string, targetNodeId?: string) => void;
+  closeChoiceModal: () => void;
+  toggleSidebar: () => void;
 }
 
 const createDefaultNode = (position: { x: number; y: number }): StoryNode => ({
@@ -89,6 +102,7 @@ const createDefaultStory = (title: string, author: string): Story => {
   const startNode = createDefaultNode({ x: 250, y: 100 });
   startNode.data.title = '🌟 Beginning';
   startNode.data.text = 'Your magical story begins here...';
+  startNode.data.isStartNode = true;
   
   return {
     id: nanoid(),
@@ -121,13 +135,29 @@ export const useStoryStore = create<StoryState>()(
         selectedNodeId: null,
         isPlayMode: false,
         currentPlayNodeId: null,
+        playState: null,
+        isSidebarOpen: true,
+        isChoiceModalOpen: false,
+        pendingConnection: null,
         history: [],
         historyIndex: -1,
 
         setCurrentStory: (story) => {
+          // Ensure the start node has isStartNode flag set
+          const nodes = story.nodes.map((node) => ({
+            ...node,
+            data: {
+              ...node.data,
+              isStartNode: node.id === story.startNodeId,
+            },
+          }));
+          
           set({
-            currentStory: story,
-            nodes: story.nodes,
+            currentStory: {
+              ...story,
+              nodes,
+            },
+            nodes,
             edges: story.edges,
             currentPlayNodeId: story.startNodeId,
           });
@@ -212,6 +242,99 @@ export const useStoryStore = create<StoryState>()(
                 edges: newEdges,
                 updatedAt: new Date().toISOString(),
               } : null,
+            };
+          });
+        },
+
+        duplicateNode: (nodeId) => {
+          set((state) => {
+            const nodeToDuplicate = state.nodes.find((node) => node.id === nodeId);
+            if (!nodeToDuplicate) return state;
+
+            const newId = nanoid();
+            const duplicatedNode: StoryNode = {
+              ...nodeToDuplicate,
+              id: newId,
+              position: {
+                x: nodeToDuplicate.position.x + 100,
+                y: nodeToDuplicate.position.y + 100,
+              },
+              data: {
+                ...nodeToDuplicate.data,
+                choices: nodeToDuplicate.data.choices.map((choice) => ({
+                  ...choice,
+                  id: nanoid(),
+                  // Note: targetNodeId will need to be updated manually or we could create a mapping
+                })),
+              },
+            };
+
+            const newNodes = [...state.nodes, duplicatedNode];
+            
+            // Duplicate edges that originate from this node
+            const edgesToDuplicate = state.edges.filter((edge) => edge.source === nodeId);
+            const newEdges = [
+              ...state.edges,
+              ...edgesToDuplicate.map((edge) => {
+                // Find the corresponding choice in the duplicated node
+                const originalChoiceIndex = nodeToDuplicate.data.choices.findIndex(
+                  (choice) => edge.id.includes(choice.id)
+                );
+                const duplicatedChoice = duplicatedNode.data.choices[originalChoiceIndex];
+                
+                return {
+                  ...edge,
+                  id: `edge-${newId}-${edge.target}-${duplicatedChoice?.id || nanoid()}`,
+                  source: newId,
+                };
+              }),
+            ];
+
+            const newHistory = state.history.slice(0, state.historyIndex + 1);
+            newHistory.push({ nodes: newNodes, edges: newEdges });
+            
+            return {
+              nodes: newNodes,
+              edges: newEdges,
+              history: newHistory,
+              historyIndex: newHistory.length - 1,
+              selectedNodeId: newId,
+              currentStory: state.currentStory ? {
+                ...state.currentStory,
+                nodes: newNodes,
+                edges: newEdges,
+                updatedAt: new Date().toISOString(),
+              } : null,
+            };
+          });
+        },
+
+        setStartNode: (nodeId) => {
+          set((state) => {
+            if (!state.currentStory) return state;
+            
+            // Update nodes to reflect the new start node
+            const newNodes = state.nodes.map((node) => ({
+              ...node,
+              data: {
+                ...node.data,
+                isStartNode: node.id === nodeId,
+              },
+            }));
+            
+            const newHistory = state.history.slice(0, state.historyIndex + 1);
+            newHistory.push({ nodes: newNodes, edges: state.edges });
+            
+            return {
+              nodes: newNodes,
+              history: newHistory,
+              historyIndex: newHistory.length - 1,
+              currentStory: {
+                ...state.currentStory,
+                startNodeId: nodeId,
+                nodes: newNodes,
+                updatedAt: new Date().toISOString(),
+              },
             };
           });
         },
@@ -404,12 +527,33 @@ export const useStoryStore = create<StoryState>()(
         },
 
         togglePlayMode: () => {
-          set((state) => ({
-            isPlayMode: !state.isPlayMode,
-            currentPlayNodeId: !state.isPlayMode && state.currentStory
-              ? state.currentStory.startNodeId
-              : null,
-          }));
+          set((state) => {
+            const enteringPlayMode = !state.isPlayMode;
+            const startNodeId = state.currentStory?.startNodeId;
+            
+            if (enteringPlayMode && startNodeId) {
+              // Initialize play state when entering play mode
+              const playState: PlayState = {
+                currentNodeId: startNodeId,
+                variables: state.currentStory?.variables || {},
+                history: [],
+                visitedNodes: new Set([startNodeId]),
+              };
+              
+              return {
+                isPlayMode: true,
+                currentPlayNodeId: startNodeId,
+                playState,
+              };
+            } else {
+              // Exit play mode
+              return {
+                isPlayMode: false,
+                currentPlayNodeId: null,
+                playState: null,
+              };
+            }
+          });
         },
 
         setCurrentPlayNode: (nodeId) => {
@@ -418,7 +562,7 @@ export const useStoryStore = create<StoryState>()(
 
         makeChoice: (choiceId) => {
           set((state) => {
-            if (!state.currentPlayNodeId) return state;
+            if (!state.currentPlayNodeId || !state.playState) return state;
             
             const currentNode = state.nodes.find((node) => node.id === state.currentPlayNodeId);
             if (!currentNode) return state;
@@ -426,8 +570,41 @@ export const useStoryStore = create<StoryState>()(
             const choice = currentNode.data.choices.find((c) => c.id === choiceId);
             if (!choice) return state;
             
+            // Update play state
+            const newHistory = [...state.playState.history, state.currentPlayNodeId];
+            const newVisitedNodes = new Set(state.playState.visitedNodes);
+            newVisitedNodes.add(choice.targetNodeId);
+            
+            const updatedPlayState: PlayState = {
+              currentNodeId: choice.targetNodeId,
+              variables: state.playState.variables,
+              history: newHistory,
+              visitedNodes: newVisitedNodes,
+            };
+            
             return {
               currentPlayNodeId: choice.targetNodeId,
+              playState: updatedPlayState,
+            };
+          });
+        },
+
+        resetPlay: () => {
+          set((state) => {
+            const startNodeId = state.currentStory?.startNodeId;
+            
+            if (!startNodeId) return state;
+            
+            const playState: PlayState = {
+              currentNodeId: startNodeId,
+              variables: state.currentStory?.variables || {},
+              history: [],
+              visitedNodes: new Set([startNodeId]),
+            };
+            
+            return {
+              currentPlayNodeId: startNodeId,
+              playState,
             };
           });
         },
@@ -526,6 +703,29 @@ export const useStoryStore = create<StoryState>()(
         canRedo: () => {
           const state = get();
           return state.historyIndex < state.history.length - 1;
+        },
+
+        openChoiceModal: (sourceNodeId, targetNodeId) => {
+          set({
+            isChoiceModalOpen: true,
+            pendingConnection: {
+              sourceNodeId,
+              targetNodeId,
+            },
+          });
+        },
+
+        closeChoiceModal: () => {
+          set({ 
+            isChoiceModalOpen: false,
+            pendingConnection: null 
+          });
+        },
+
+        toggleSidebar: () => {
+          set((state) => ({
+            isSidebarOpen: !state.isSidebarOpen,
+          }));
         },
       }),
       {
